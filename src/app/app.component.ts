@@ -21,6 +21,8 @@ export class AppComponent implements OnInit, OnDestroy {
   exhaustMap$: Subject<string> = new Subject<string>();
   mergeMap$: Subject<string> = new Subject<string>();
   concatMap$: Subject<string> = new Subject<string>();
+  combo$: Subject<string> = new Subject<string>();
+  comboNested$: Subject<string> = new Subject<string>();
 
   constructor(private appService: AppService) {}
 
@@ -29,6 +31,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.exhaustMap();
     this.mergeMap();
     this.concatMap();
+    this.combinationMaps();
+    this.combinationMapsNested();
   }
 
   ngOnDestroy(): void {}
@@ -102,5 +106,81 @@ export class AppComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(console.log, console.error, () => `concatMap completed!`);
+  }
+
+  // nesting not needed if you just need info from previous resposne in next reuqest
+  combinationMaps() {
+    this.combo$
+      .pipe(
+        switchMap((click) => {
+          click = 'switchMap';
+          console.log(`${click} started...`);
+          return this.appService.getRequest(
+            `Received ${click} Response!`,
+            1000
+          );
+        }),
+        mergeMap((click: any) => {
+          click = 'mergeMap 1';
+          console.log(`${click} started...`);
+          return this.appService.getRequest(
+            `Received ${click} Response!`,
+            1000
+          );
+        }),
+        mergeMap((click: any) => {
+          click = 'mergeMap 2';
+          console.log(`${click} started...`);
+          return this.appService.getRequest(
+            `Received ${click} Response!`,
+            2000
+          );
+        }),
+        mergeMap((click: any) => {
+          click = 'mergeMap 3';
+          console.log(`${click} started...`);
+          return this.appService.getRequest(
+            `Received ${click} Response!`,
+            3000
+          );
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(console.log, console.error, () => `completed!`);
+  }
+
+  // nesting necessary if you need info of combination of responses
+  combinationMapsNested() {
+    this.comboNested$
+      .pipe(
+        map((comboVal) => [comboVal]),
+        switchMap((val: string[]) => {
+          val = ['switchMap'];
+          console.log(`${val[val.length - 1]} started...`);
+          return this.appService.getRequest(val, 1000).pipe(
+            mergeMap((val: string[]) => {
+              val = [...val, 'mergeMap 1'];
+              console.log(`${val[val.length - 1]} started...`);
+              return this.appService.getRequest(val, 1000).pipe(
+                mergeMap((val: string[]) => {
+                  val = [...val, 'mergeMap 2'];
+                  console.log(`${val[val.length - 1]} started...`);
+                  return this.appService.getRequest(val, 2000).pipe(
+                    mergeMap((val: string[]) => {
+                      val = [...val, 'mergeMap 3'];
+                      console.log(`${val[val.length - 1]} started...`);
+                      return this.appService
+                        .getRequest(val, 3000)
+                        .pipe(map(() => val));
+                    })
+                  );
+                })
+              );
+            })
+          );
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(console.log, console.error, () => `completed!`);
   }
 }
